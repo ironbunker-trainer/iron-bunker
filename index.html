@@ -422,6 +422,13 @@ body.dark .note-input-ta{background:rgba(245,158,11,.08);border:2px solid rgba(2
     <div class="fg"><label class="fl">Gym Name</label><input class="fi" id="set-gym"></div>
     <div class="fg"><label class="fl">Location</label><input class="fi" id="set-loc"></div>
     <div class="fg"><label class="fl">Phone</label><input class="fi" id="set-phone" type="tel"></div>
+    <div class="dv"></div>
+    <div class="sec-sep">🤖 Telegram Auto-Backup</div>
+    <div style="background:var(--gs);border:1px solid rgba(245,166,35,.25);border-radius:9px;padding:10px 12px;margin-bottom:11px;font-size:11px;color:var(--t2);line-height:1.5">💡 Bot token aur Chat ID daalo — har log Telegram pe automatic backup ho jaayega.</div>
+    <div class="fg"><label class="fl">Bot Token</label><input class="fi" id="set-tgtoken" placeholder="Paste your bot token here" autocomplete="off"></div>
+    <div class="fg"><label class="fl">Chat ID</label><input class="fi" id="set-tgchat" placeholder="Your Telegram Chat ID" type="tel"></div>
+    <div class="fg"><label class="fl" style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="set-tgauto" style="width:16px;height:16px;accent-color:var(--g);margin:0"><span>Enable auto-backup on every workout log</span></label></div>
+    <button class="bs" data-action="test-telegram" style="width:100%;margin-top:8px;background:var(--gs);border-color:rgba(245,166,35,.3);color:var(--g)">🔥 Send Test Message</button>
   </div>
   <div class="sh-f"><button class="bs" data-action="close-settings">Cancel</button><button class="bp" data-action="save-settings">Save</button></div>
 </div></div>
@@ -615,7 +622,7 @@ var COLORS = [
 // rounds: for giantset/circuit (how many times to repeat the block)
 
 var DB = { cl: [], wk: {} };
-var TRAINER = { name: "Darshit Desai", gym: "Iron Bunker", loc: "Kadodara, Surat", phone: "" };
+var TRAINER = { name: "Darshit Desai", gym: "Iron Bunker", loc: "Kadodara, Surat", phone: "", tgToken: "", tgChat: "", tgAuto: false };
 var ST = { cid: null, wk: 1, dayOpen: null, logTarget: null, editCid: null, blocks: [], editDay: null, newWk: null };
 var importParsed = [];
 var darkMode = false;
@@ -1745,6 +1752,9 @@ function openSettings() {
   document.getElementById("set-gym").value = TRAINER.gym || "";
   document.getElementById("set-loc").value = TRAINER.loc || "";
   document.getElementById("set-phone").value = TRAINER.phone || "";
+  document.getElementById("set-tgtoken").value = TRAINER.tgToken || "";
+  document.getElementById("set-tgchat").value = TRAINER.tgChat || "";
+  document.getElementById("set-tgauto").checked = !!TRAINER.tgAuto;
   openSheet("settings");
 }
 
@@ -1753,6 +1763,9 @@ function saveSettings() {
   TRAINER.gym = document.getElementById("set-gym").value.trim() || "Iron Bunker";
   TRAINER.loc = document.getElementById("set-loc").value.trim() || "";
   TRAINER.phone = document.getElementById("set-phone").value.trim() || "";
+  TRAINER.tgToken = document.getElementById("set-tgtoken").value.trim() || "";
+  TRAINER.tgChat = document.getElementById("set-tgchat").value.trim() || "";
+  TRAINER.tgAuto = document.getElementById("set-tgauto").checked;
   saveTrainer(); applyTrainer(); closeSheet("settings"); toast("Settings saved ✅");
 }
 
@@ -1873,6 +1886,7 @@ document.addEventListener("click", function(e) {
       case "save-note": saveSetNote(); break;
       case "delete-note": deleteSetNote(); break;
       case "close-noteEdit": closeSheet("noteEdit"); break;
+      case "test-telegram": testTelegram(); break;
     }
     return;
   }
@@ -1933,6 +1947,10 @@ function saveBackupState() {
 function triggerAutoBackup() {
   BACKUP_STATE.logsSinceBackup++;
   saveBackupState();
+  // Telegram auto-backup: send on EVERY log if enabled
+  if (TRAINER.tgAuto && TRAINER.tgToken && TRAINER.tgChat) {
+    sendToTelegram(false);
+  }
   if (BACKUP_STATE.logsSinceBackup >= 5) {
     // Copy data to clipboard automatically
     var json = JSON.stringify({ data: DB, trainer: TRAINER, backupDate: today() }, null, 2);
@@ -2092,6 +2110,104 @@ function openSetNoteFromAction(actionEl) {
   var currentNote = getSetNote(cid, wk, dn, bi, ei, si);
   var setLabel = plan.blocks[bi].type === "dropset" ? "Set " + (si + 1) + " (Drop Set)" : "Set " + (si + 1);
   openNoteEditor({cid:cid, wk:wk, dn:dn, bi:bi, ei:ei, si:si}, ex.name, setLabel, currentNote);
+}
+
+
+// ════════════════════════════════════════
+// TELEGRAM AUTO-BACKUP
+// ════════════════════════════════════════
+function sendToTelegram(asTestMessage) {
+  if (!TRAINER.tgToken || !TRAINER.tgChat) {
+    if (asTestMessage) toast("⚠️ Token ya Chat ID missing");
+    return Promise.resolve(false);
+  }
+  
+  var now = new Date();
+  var dateStr = now.toLocaleString("en-IN", {day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"});
+  var totalClients = DB.cl.length;
+  var totalLogs = 0;
+  Object.keys(DB.wk).forEach(function(cid) {
+    Object.keys(DB.wk[cid]).forEach(function(wk) {
+      var logs = DB.wk[cid][wk].logs || {};
+      Object.keys(logs).forEach(function(dn) {
+        if (logs[dn].done) totalLogs++;
+      });
+    });
+  });
+  
+  var caption = "🔥 Iron Bunker Backup\n" +
+                "📅 " + dateStr + "\n" +
+                "👥 Clients: " + totalClients + "\n" +
+                "💪 Total Logs: " + totalLogs;
+  
+  if (asTestMessage) {
+    caption = "✅ Iron Bunker Test Message\n" +
+              "📅 " + dateStr + "\n" +
+              "🎯 Setup is working! Auto-backup will now run on every workout log.";
+  }
+  
+  // Step 1: Send text message
+  var sendMsgUrl = "https://api.telegram.org/bot" + TRAINER.tgToken + "/sendMessage";
+  var msgPromise = fetch(sendMsgUrl, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({chat_id: TRAINER.tgChat, text: caption})
+  }).then(function(r) { return r.json(); });
+  
+  if (asTestMessage) {
+    return msgPromise.then(function(res) {
+      if (res.ok) {
+        toast("✅ Test message sent to Telegram!");
+        return true;
+      } else {
+        toast("❌ Failed: " + (res.description || "Unknown error"));
+        return false;
+      }
+    }).catch(function(err) {
+      toast("❌ Network error: " + err.message);
+      return false;
+    });
+  }
+  
+  // Step 2: Send JSON file as document
+  var json = JSON.stringify({data: DB, trainer: TRAINER, backupDate: today()}, null, 2);
+  var fileName = "IronBunker_" + now.toISOString().split("T")[0] + "_" + now.getTime() + ".json";
+  
+  var formData = new FormData();
+  formData.append("chat_id", TRAINER.tgChat);
+  formData.append("document", new Blob([json], {type: "application/json"}), fileName);
+  formData.append("caption", "📎 Backup file — paste in app to restore");
+  
+  return fetch("https://api.telegram.org/bot" + TRAINER.tgToken + "/sendDocument", {
+    method: "POST",
+    body: formData
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (res.ok) {
+      BACKUP_STATE.logsSinceBackup = 0;
+      BACKUP_STATE.lastBackupDate = today();
+      saveBackupState();
+      showBackupBanner("✅ Backup sent to Telegram automatically!", true);
+      return true;
+    } else {
+      console.error("TG error:", res);
+      return false;
+    }
+  }).catch(function(err) {
+    console.error("TG fetch error:", err);
+    return false;
+  });
+}
+
+function testTelegram() {
+  // First save the settings entered in form
+  TRAINER.tgToken = document.getElementById("set-tgtoken").value.trim();
+  TRAINER.tgChat = document.getElementById("set-tgchat").value.trim();
+  if (!TRAINER.tgToken || !TRAINER.tgChat) {
+    toast("⚠️ Pehle Token aur Chat ID daalo!");
+    return;
+  }
+  toast("Sending test message...");
+  sendToTelegram(true);
 }
 
 // ════════════════════════════════════════
