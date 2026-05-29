@@ -519,6 +519,35 @@ body.dark .set-drop-toggle-btn.on{background:rgba(162,155,254,.15);color:#C4B5FD
 
 </div>
 
+
+<!-- ONBOARDING SCREEN -->
+<div class="scr" id="s-onboarding" style="background:linear-gradient(135deg,#2563EB,#1E40AF);overflow-y:auto">
+  <div style="flex:1;display:flex;flex-direction:column;padding:30px 24px 24px;color:#FFF">
+    <div style="text-align:center;margin-bottom:24px">
+      <img id="ob-logo" src="" alt="Iron Bunker" style="height:60px;filter:brightness(0) invert(1);margin-bottom:14px">
+      <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.8);font-weight:700;text-transform:uppercase;margin-bottom:6px">Welcome to</div>
+      <div style="font-family:'Bebas Neue';font-size:32px;letter-spacing:2px;color:#FFF;line-height:1">Iron Bunker Pro</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:6px">Trainer Dashboard</div>
+    </div>
+    
+    <div style="background:#FFF;border-radius:18px;padding:20px;color:#0F172A;box-shadow:0 12px 30px rgba(0,0,0,.25)">
+      <div style="font-size:16px;font-weight:800;color:#0F172A;margin-bottom:6px">👋 Let's get you started</div>
+      <div style="font-size:12px;color:#64748B;margin-bottom:18px;line-height:1.5">Yeh app aapke phone pe save hoga. Apni details daalo (sirf ek baar).</div>
+      
+      <div class="fg"><label class="fl">Your Name *</label><input class="fi" id="ob-name" placeholder="e.g. John Doe" autocomplete="off"></div>
+      <div class="fg"><label class="fl">Gym Name *</label><input class="fi" id="ob-gym" placeholder="e.g. Iron Bunker" autocomplete="off"></div>
+      <div class="fg"><label class="fl">Location</label><input class="fi" id="ob-loc" placeholder="e.g. Surat" autocomplete="off"></div>
+      <div class="fg"><label class="fl">Phone</label><input class="fi" id="ob-phone" placeholder="e.g. 9876543210" type="tel" autocomplete="off"></div>
+      
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:11px;color:#1D4ED8;line-height:1.5">💡 Telegram auto-backup baad mein Settings se setup kar sakte ho.</div>
+      
+      <button class="bp" data-action="ob-complete" style="width:100%;margin-top:16px;padding:14px;font-size:14px">Get Started 🚀</button>
+    </div>
+    
+    <div style="text-align:center;margin-top:20px;font-size:10px;color:rgba(255,255,255,.7)">Your data stays on your phone — private & secure</div>
+  </div>
+</div>
+
 <!-- SHEETS -->
 <div class="ov" id="ov-settings"><div class="sh" id="sh-settings">
   <div class="sh-h"></div><div class="sh-t">⚙️ Trainer Settings</div>
@@ -789,7 +818,7 @@ var COLORS = [
 // rounds: for giantset/circuit (how many times to repeat the block)
 
 var DB = { cl: [], wk: {} };
-var TRAINER = { name: "Darshit Desai", gym: "Iron Bunker", loc: "Kadodara, Surat", phone: "", tgToken: "", tgChat: "", tgAuto: false };
+var TRAINER = { name: "", gym: "", loc: "", phone: "", tgToken: "", tgChat: "", tgAuto: false };
 var ST = { cid: null, wk: 1, dayOpen: null, logTarget: null, editCid: null, blocks: [], editDay: null, newWk: null };
 var importParsed = [];
 var darkMode = false;
@@ -2044,8 +2073,8 @@ function saveSettings() {
 }
 
 function applyTrainer() {
-  var nameEl = document.getElementById("hero-name"); if (nameEl) nameEl.textContent = TRAINER.name;
-  var gymEl = document.getElementById("hero-gym"); if (gymEl) gymEl.textContent = "📍 " + TRAINER.gym + (TRAINER.loc ? " · " + TRAINER.loc : "");
+  var nameEl = document.getElementById("hero-name"); if (nameEl) nameEl.textContent = TRAINER.name || "Trainer";
+  var gymEl = document.getElementById("hero-gym"); if (gymEl) gymEl.textContent = "📍 " + (TRAINER.gym || "My Gym") + (TRAINER.loc ? " · " + TRAINER.loc : "");
 }
 
 // ════════════════════════════════════════
@@ -2178,6 +2207,7 @@ document.addEventListener("click", function(e) {
       case "live-end": liveEndSession(); break;
       case "live-save-all": liveSaveAll(); break;
       case "live-confirm-save": liveConfirmSave(); break;
+      case "ob-complete": completeOnboarding(); break;
       case "close-liveReview": closeSheet("liveReview"); break;
     }
     return;
@@ -3297,12 +3327,88 @@ function liveConfirmSave() {
   toast("✅ Saved " + savedCount + " sessions! 💪");
 }
 
+
+// ════════════════════════════════════════
+// ONBOARDING FLOW
+// ════════════════════════════════════════
+function isSetupDone() {
+  try {
+    var done = localStorage.getItem("IB_setup_done");
+    if (done === "true") return true;
+    // Backwards compat: if existing data, mark as done
+    if (DB.cl && DB.cl.length > 0) {
+      localStorage.setItem("IB_setup_done", "true");
+      return true;
+    }
+    // If trainer name is already set (existing user), skip onboarding
+    if (TRAINER.name && TRAINER.name.trim()) {
+      localStorage.setItem("IB_setup_done", "true");
+      return true;
+    }
+    return false;
+  } catch(e) { return false; }
+}
+
+function showOnboarding() {
+  // Hide all screens
+  var scrs = document.querySelectorAll(".scr");
+  for (var i = 0; i < scrs.length; i++) scrs[i].classList.remove("on");
+  document.getElementById("s-onboarding").classList.add("on");
+  
+  // Set logo from one of the topbar logos
+  var topbarLogo = document.querySelector(".tb-logo");
+  var obLogo = document.getElementById("ob-logo");
+  if (topbarLogo && obLogo && topbarLogo.src) {
+    obLogo.src = topbarLogo.src;
+  }
+  
+  // Pre-fill if existing values (in case they reopened)
+  document.getElementById("ob-name").value = TRAINER.name || "";
+  document.getElementById("ob-gym").value = TRAINER.gym || "";
+  document.getElementById("ob-loc").value = TRAINER.loc || "";
+  document.getElementById("ob-phone").value = TRAINER.phone || "";
+}
+
+function completeOnboarding() {
+  var name = document.getElementById("ob-name").value.trim();
+  var gym = document.getElementById("ob-gym").value.trim();
+  
+  if (!name) {
+    toast("⚠️ Please enter your name");
+    document.getElementById("ob-name").focus();
+    return;
+  }
+  if (!gym) {
+    toast("⚠️ Please enter gym name");
+    document.getElementById("ob-gym").focus();
+    return;
+  }
+  
+  TRAINER.name = name;
+  TRAINER.gym = gym;
+  TRAINER.loc = document.getElementById("ob-loc").value.trim();
+  TRAINER.phone = document.getElementById("ob-phone").value.trim();
+  
+  saveTrainer();
+  
+  try { localStorage.setItem("IB_setup_done", "true"); } catch(e) {}
+  
+  applyTrainer();
+  
+  // Hide onboarding, show home
+  document.getElementById("s-onboarding").classList.remove("on");
+  go("home");
+  toast("🎉 Welcome " + name + "! Let's add your first client.");
+}
+
 // ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
 loadTrainer();
 load();
 loadBackupState();
+// Check if onboarding needed
+var needsOnboarding = !isSetupDone();
 var savedTheme = localStorage.getItem("IB_theme_v1");
 if (savedTheme === "dark") {
   darkMode = true;
@@ -3312,8 +3418,12 @@ if (savedTheme === "dark") {
 }
 document.getElementById("ac-j").value = today();
 applyTrainer();
-renderHome();
-checkDailyReminder();
+if (needsOnboarding) {
+  showOnboarding();
+} else {
+  renderHome();
+  checkDailyReminder();
+}
 </script>
 </body>
 </html>
