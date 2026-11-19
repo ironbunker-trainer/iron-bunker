@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#18181B">
+<link rel="manifest" href="manifest.json">
+<title>Iron Bunker App Install</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0A0A0B;color:#F5F5F7;padding:24px 18px 40px;max-width:480px;margin:0 auto}
+.logo{display:block;width:120px;height:120px;border-radius:26px;margin:0 auto 14px}
+h1{text-align:center;font-size:22px;letter-spacing:1px;margin-bottom:4px}
+.sub{text-align:center;color:#A0A0A8;font-size:14px;margin-bottom:22px}
+.card{background:#161619;border:1px solid #2A2A2E;border-radius:16px;padding:18px;margin-bottom:14px}
+.card h2{font-size:17px;margin-bottom:12px}
+ol{padding-left:22px}
+li{margin-bottom:10px;line-height:1.45;font-size:15px}
+b{color:#fff}
+.btn{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#F5F5F7;color:#0A0A0B;font-size:17px;font-weight:800;text-align:center;text-decoration:none;margin-top:6px}
+.warn{background:#2a1215;border-color:#FF4757}
+.hide{display:none}
+.tag{display:inline-block;background:#2A2A2E;border-radius:6px;padding:1px 7px;font-size:13px}
+.note{color:#A0A0A8;font-size:13px;line-height:1.5}
+</style>
+</head>
+<body>
+<img class="logo" src="icon-192.png" alt="Iron Bunker">
+<h1>IRON BUNKER PRO</h1>
+<p class="sub">Trainer App – 1 minute mein install karo</p>
+
+<div id="inapp" class="card warn hide">
+  <h2>⚠️ Pehle browser mein kholo</h2>
+  <p class="note" style="color:#F5F5F7">Ye link WhatsApp/Instagram ke andar khula hai – yahan se install nahi hoga.<br><br>
+  Upar right corner mein <b>⋮</b> ya <b>⋯</b> dabao → <b>"Open in Chrome"</b> (Android) ya <b>"Open in Safari"</b> (iPhone).</p>
+</div>
+
+<div id="done" class="card hide">
+  <h2>✅ App already install hai</h2>
+  <a class="btn" href="./">App kholo</a>
+</div>
+
+<div id="android" class="card">
+  <h2>🤖 Android Phone</h2>
+  <button id="installBtn" class="btn hide">📲 INSTALL APP</button>
+  <ol id="androidSteps" style="margin-top:12px">
+    <li>Ye page <b>Google Chrome</b> mein khula hona chahiye</li>
+    <li>Upar right mein <b>⋮</b> (3 dots) dabao</li>
+    <li><b>"Install app"</b> ya <b>"Add to Home screen"</b> dabao → <b>Install</b></li>
+    <li>Home screen pe <b>Iron Bunker</b> icon aa jayega – wahi se kholna</li>
+  </ol>
+</div>
+
+<div id="ios" class="card">
+  <h2>🍎 iPhone</h2>
+  <ol>
+    <li>Ye page <b>Safari</b> mein khula hona chahiye</li>
+    <li>Neeche <b>Share</b> button <span class="tag">⬆️</span> dabao</li>
+    <li>Scroll karke <b>"Add to Home Screen"</b> dabao</li>
+    <li>Upar right <b>"Add"</b> dabao</li>
+    <li>Home screen pe <b>Iron Bunker</b> icon aa jayega – wahi se kholna</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>📌 Zaroori</h2>
+  <ol>
+    <li>App hamesha <b>home screen icon</b> se kholo, browser se nahi</li>
+    <li>Pehli baar kholne pe apna <b>naam</b> daal ke setup karo</li>
+    <li>Aapka data <b>aapke phone</b> mein save hota hai – app delete mat karna</li>
+  </ol>
+</div>
+
+<script>
+var ua = navigator.userAgent || "";
+var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+var isAndroid = /Android/i.test(ua);
+var inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)|Snapchat/i.test(ua);
+var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+if (isIOS) document.getElementById("android").classList.add("hide");
+if (isAndroid) document.getElementById("ios").classList.add("hide");
+if (inApp) document.getElementById("inapp").classList.remove("hide");
+if (standalone) document.getElementById("done").classList.remove("hide");
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+
+var deferred = null, btn = document.getElementById("installBtn");
+window.addEventListener("beforeinstallprompt", function(e){
+  e.preventDefault(); deferred = e; btn.classList.remove("hide");
+});
+btn.addEventListener("click", function(){
+  if (!deferred) return;
+  deferred.prompt();
+  deferred.userChoice.then(function(){ deferred = null; btn.classList.add("hide"); });
+});
+window.addEventListener("appinstalled", function(){
+  btn.classList.add("hide"); document.getElementById("done").classList.remove("hide");
+});
+</script>
+</body>
+</html>

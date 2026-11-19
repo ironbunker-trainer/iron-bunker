@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IB Owner">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Iron Bunker – Owner</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0A0A0B;color:#F5F5F7;max-width:520px;margin:0 auto;padding:0 0 40px}
+.top{position:sticky;top:0;background:#000;border-bottom:1px solid #2A2A2E;padding:14px 16px;display:flex;align-items:center;gap:10px;z-index:5}
+.top h1{font-size:17px;letter-spacing:1px;flex:1}
+.btn{background:#F5F5F7;color:#0A0A0B;border:0;border-radius:10px;padding:9px 14px;font-weight:800;font-size:14px}
+.btn.g{background:#1E1E22;color:#F5F5F7;border:1px solid #2A2A2E}
+.wrap{padding:14px}
+.card{background:#161619;border:1px solid #2A2A2E;border-radius:14px;padding:14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.name{font-weight:800;font-size:16px}
+.sub{color:#A0A0A8;font-size:12px;margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.st{background:#0A0A0B;border:1px solid #2A2A2E;border-radius:10px;padding:8px;text-align:center}
+.st b{display:block;font-size:20px}.st span{font-size:10px;color:#A0A0A8;text-transform:uppercase;letter-spacing:.5px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.ok{background:#22C55E}.old{background:#F59E0B}.dead{background:#FF4757}
+input{width:100%;background:#161619;border:1.5px solid #2A2A2E;border-radius:12px;padding:14px;font-size:18px;color:#fff;text-align:center;letter-spacing:4px;margin:12px 0}
+.center{text-align:center;padding-top:80px}
+h2{font-size:14px;color:#A0A0A8;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:7px 6px;border-bottom:1px solid #2A2A2E;text-align:left}th{color:#A0A0A8;font-size:11px;text-transform:uppercase}
+td.n,th.n{text-align:right}
+.day{border-top:1px solid #2A2A2E;padding:9px 0}
+.day .h{font-weight:700;font-size:13px}.ex{font-size:12px;color:#C8C8D0;margin-top:3px;line-height:1.5}
+.pill{display:inline-block;font-size:10px;padding:2px 7px;border-radius:6px;background:#2A2A2E;margin-left:6px}
+.pill.d{background:#14532d}.pill.a{background:#7f1d1d}
+.err{color:#FF4757;font-size:14px;text-align:center;margin-top:6px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}.tabs button{flex:none}
+.tabs .on{background:#F5F5F7;color:#0A0A0B}
+.small{font-size:12px;color:#A0A0A8}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var CFG=null, PIN="", TR=[], TODAY="", cache={};
+var app=document.getElementById("app");
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function api(q){
+  var u=CFG.url+(CFG.url.indexOf("?")>0?"&":"?")+"pin="+encodeURIComponent(PIN)+"&"+q;
+  return fetch(u).then(function(r){return r.json()});
+}
+function hdr(title,back){
+  return '<div class="top">'+(back?'<button class="btn g" onclick="'+back+'">←</button>':'')+'<h1>'+esc(title)+'</h1><button class="btn g" onclick="logout()">Lock</button></div>';
+}
+function login(msg){
+  app.innerHTML='<div class="center wrap"><img src="icon-192.png" width="90" height="90" style="border-radius:20px"><h1 style="margin-top:14px;letter-spacing:1px">OWNER PANEL</h1><p class="sub">Apna PIN daalo</p><input id="pin" type="password" inputmode="numeric" autocomplete="current-password"><button class="btn" style="width:100%;padding:15px;font-size:16px" onclick="doLogin()">OPEN</button><div class="err">'+esc(msg||"")+'</div></div>';
+  var p=document.getElementById("pin"); p.onkeydown=function(e){if(e.key==="Enter")doLogin()};
+}
+function doLogin(){
+  PIN=document.getElementById("pin").value.trim(); if(!PIN)return;
+  app.innerHTML='<div class="center sub">Loading…</div>';
+  loadList().then(function(ok){ if(ok){ try{localStorage.setItem("IB_owner_pin",PIN)}catch(e){} } });
+}
+function logout(){ try{localStorage.removeItem("IB_owner_pin")}catch(e){} PIN=""; login(); }
+function ago(iso){
+  if(!iso)return "never";
+  var m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+  if(m<2)return "just now"; if(m<60)return m+" min ago"; if(m<1440)return Math.round(m/60)+" hr ago";
+  return Math.round(m/1440)+" days ago";
+}
+function loadList(){
+  return api("action=list").then(function(r){
+    if(!r.ok){ login(r.err||"Error"); return false; }
+    TR=r.trainers; TODAY=r.today; renderList(); return true;
+  }).catch(function(){ login("Internet / server problem"); return false; });
+}
+function mkey(d){return d.slice(0,7)}
+function renderList(){
+  var thisM=TODAY.slice(0,7), h=hdr("IRON BUNKER – OWNER")+'<div class="wrap">';
+  var tc=0,ts=0,tm=0;
+  TR.forEach(function(t){tc+=+t.clients||0; ts+=+(t.syncDay===TODAY?t.todayCount:0)||0; tm+=+((t.months||{})[thisM])||0;});
+  h+='<div class="card"><div class="grid"><div class="st"><b>'+TR.length+'</b><span>Trainers</span></div><div class="st"><b>'+tc+'</b><span>Clients</span></div><div class="st"><b>'+ts+'</b><span>Sessions today</span></div></div><div class="sub" style="margin-top:10px">Is mahine total sessions: <b style="color:#fff">'+tm+'</b></div></div>';
+  h+='<button class="btn g" style="width:100%;margin-bottom:10px" onclick="loadList()">↻ Refresh</button>';
+  h+='<h2>Trainers</h2>';
+  TR.sort(function(a,b){return (b.lastSync||"").localeCompare(a.lastSync||"")});
+  TR.forEach(function(t,i){
+    var age=t.lastSync?(Date.now()-new Date(t.lastSync).getTime())/86400000:999;
+    var cls=age<2?"ok":age<7?"old":"dead";
+    var today=t.syncDay===TODAY?t.todayCount:0;
+    h+='<div class="card" onclick="openTrainer('+i+')"><div class="row"><div><div class="name">'+esc(t.name)+'</div><div class="sub"><span class="dot '+cls+'"></span>Last sync: '+ago(t.lastSync)+'</div></div><div style="font-size:20px">›</div></div>'+
+    '<div class="grid"><div class="st"><b>'+t.clients+'</b><span>Clients</span></div><div class="st"><b>'+today+'</b><span>Today</span></div><div class="st"><b>'+((t.months||{})[thisM]||0)+'</b><span>This month</span></div></div>'+
+    '<div class="sub" style="margin-top:8px">Last workout: '+esc(t.lastWorkout||"—")+'</div></div>';
+  });
+  if(!TR.length)h+='<div class="sub center" style="padding-top:30px">Abhi koi trainer sync nahi hua.<br>Staff ke app mein kuch bhi save karte hi yahan aa jayega.</div>';
+  app.innerHTML=h+'</div>';
+}
+function openTrainer(i){
+  var t=TR[i]; window.CT=t;
+  var months=Object.keys(t.months||{}).sort().reverse();
+  var h=hdr(t.name,"renderList()")+'<div class="wrap"><div class="card"><div class="sub">Phone: '+esc(t.phone||"—")+' · Last sync: '+ago(t.lastSync)+'</div></div>';
+  h+='<h2>Monthly PT sessions</h2><div class="card"><table><tr><th>Month</th><th class="n">Sessions</th></tr>';
+  months.forEach(function(m){h+='<tr><td>'+esc(m)+'</td><td class="n"><b>'+t.months[m]+'</b></td></tr>'});
+  if(!months.length)h+='<tr><td colspan="2" class="sub">No sessions yet</td></tr>';
+  h+='</table></div><h2>Clients</h2><div id="cl"><div class="sub">Loading…</div></div></div>';
+  app.innerHTML=h;
+  api("action=get&uid="+encodeURIComponent(t.uid)).then(function(r){
+    if(!r.ok){document.getElementById("cl").innerHTML='<div class="err">'+esc(r.err)+'</div>';return;}
+    cache[t.uid]=r.d; renderClients(t.uid);
+  }).catch(function(){document.getElementById("cl").innerHTML='<div class="err">Load failed</div>'});
+}
+function sessions(d,cid){
+  var n=0,last="",w=(d.wk||{})[cid]||{};
+  Object.keys(w).forEach(function(k){var L=(w[k].logs)||{};Object.keys(L).forEach(function(dn){if(L[dn]&&L[dn].done){n++;if((L[dn].date||"")>last)last=L[dn].date||""}})});
+  return {n:n,last:last};
+}
+function renderClients(uid){
+  var d=cache[uid], h="";
+  (d.data.cl||[]).forEach(function(c){
+    var s=sessions(d.data,c.id);
+    h+='<div class="card" onclick="openClient(\''+uid+'\',\''+c.id+'\')"><div class="row"><div><div class="name">'+esc(c.name)+'</div><div class="sub">'+esc(c.goal||"")+(c.ptEnd?' · PT till '+esc(c.ptEnd):'')+'</div></div><div class="small">'+s.n+' sessions<br>last: '+esc(s.last||"—")+'</div></div></div>';
+  });
+  if(!h)h='<div class="sub">No clients</div>';
+  document.getElementById("cl").innerHTML=h;
+}
+function setTxt(s){
+  if(!s)return "";
+  if(s.dur||s.dist){return [s.dur&&s.dur+"min",s.dist&&s.dist+"km",s.spd&&s.spd+"spd",s.inc&&s.inc+"inc"].filter(Boolean).join(" ")}
+  if(s.lw||s.rw){return "L"+(s.lw||0)+"×"+(s.lr||0)+" R"+(s.rw||0)+"×"+(s.rr||0)}
+  var t=(s.w||0)+"×"+(s.r||0);
+  if(s.drops&&s.drops.length)t+=" ↓"+s.drops.map(function(x){return (x.w||0)+"×"+(x.r||0)}).join("↓");
+  return t;
+}
+function hasData(s){return s&&(s.w||s.r||s.lw||s.lr||s.rw||s.rr||s.dur||s.dist||(s.drops&&s.drops.length))}
+function openClient(uid,cid){
+  var d=cache[uid].data, c=null; (d.cl||[]).forEach(function(x){if(x.id===cid)c=x});
+  var h=hdr(c.name,"openTrainer(TR.indexOf(window.CT))")+'<div class="wrap">';
+  h+='<div class="card"><div class="sub">'+esc(c.goal||"")+' · '+esc(c.split||"")+'<br>Joined: '+esc(c.join||"—")+' · PT ends: '+esc(c.ptEnd||"—")+'<br>Phone: '+esc(c.phone||"—")+(c.bw?' · BW: '+esc(c.bw)+'kg':'')+(c.notes?'<br>Notes: '+esc(c.notes):'')+'</div></div>';
+  var wk=(d.wk||{})[cid]||{}, pr={};
+  var weeks=Object.keys(wk).map(Number).sort(function(a,b){return b-a});
+  weeks.forEach(function(w){
+    var W=wk[w], logs=W.logs||{}, plan=W.plan||{};
+    Object.keys(logs).forEach(function(dn){var L=logs[dn]; if(!L||!L.done||!L.blocks)return;
+      Object.keys(L.blocks).forEach(function(bi){Object.keys(L.blocks[bi]).forEach(function(ei){
+        var ex=plan[dn]&&plan[dn].blocks&&plan[dn].blocks[bi]&&plan[dn].blocks[bi].exercises&&plan[dn].blocks[bi].exercises[ei];
+        if(!ex)return; (L.blocks[bi][ei]||[]).forEach(function(s){var wv=parseFloat(s&&s.w)||0; if(wv&&(!pr[ex.name]||wv>pr[ex.name].w))pr[ex.name]={w:wv,r:s.r,d:L.date}});
+      })});
+    });
+  });
+  var pk=Object.keys(pr).sort(function(a,b){return pr[b].w-pr[a].w}).slice(0,8);
+  if(pk.length){h+='<h2>Top weights (PR)</h2><div class="card"><table>';pk.forEach(function(k){h+='<tr><td>'+esc(k)+'</td><td class="n"><b>'+pr[k].w+'kg × '+(pr[k].r||"-")+'</b></td></tr>'});h+='</table></div>'}
+  if(c.bwLog&&c.bwLog.length){h+='<h2>Body weight</h2><div class="card small">'+c.bwLog.slice(-8).map(function(x){return esc(x.date)+': <b style="color:#fff">'+esc(x.w)+'kg</b>'}).join('<br>')+'</div>'}
+  weeks.forEach(function(w){
+    var W=wk[w], plan=W.plan||{}, logs=W.logs||{};
+    h+='<h2>Week '+w+'</h2><div class="card">';
+    var dns=Object.keys(plan).sort(function(a,b){return a-b});
+    Object.keys(logs).forEach(function(k){if(dns.indexOf(k)<0)dns.push(k)});
+    if(!dns.length)h+='<div class="sub">Empty</div>';
+    dns.forEach(function(dn){
+      var P=plan[dn]||{}, L=logs[dn], st=L&&L.done?'<span class="pill d">Done '+esc(L.date||"")+'</span>':L&&L.absent?'<span class="pill a">Absent</span>':'<span class="pill">Planned</span>';
+      h+='<div class="day"><div class="h">Day '+esc(dn)+' – '+esc(P.muscle||"")+st+'</div>';
+      (P.blocks||[]).forEach(function(b,bi){
+        (b.exercises||[]).forEach(function(ex,ei){
+          var sets=(L&&L.done&&L.blocks&&L.blocks[bi]&&L.blocks[bi][ei])||ex.sets||[];
+          var txt=sets.filter(hasData).map(setTxt).join(", ");
+          h+='<div class="ex">'+(b.type&&b.type!=="normal"?'<span class="pill">'+esc(b.type)+'</span>':'')+'<b>'+esc(ex.name)+'</b>'+(txt?': '+esc(txt):'')+'</div>';
+        });
+      });
+      h+='</div>';
+    });
+    h+='</div>';
+  });
+  app.innerHTML=h+'</div>'; window.scrollTo(0,0);
+}
+fetch("config.json",{cache:"no-store"}).then(function(r){return r.json()}).then(function(c){
+  if(!c||!c.url||c.url.indexOf("http")!==0){app.innerHTML='<div class="center wrap err">config.json mein Web App URL nahi hai</div>';return}
+  CFG=c; var p=""; try{p=localStorage.getItem("IB_owner_pin")||""}catch(e){}
+  if(p){PIN=p; loadList().then(function(ok){})} else login();
+}).catch(function(){app.innerHTML='<div class="center wrap err">config.json load nahi hua</div>'});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
+</script>
+</body>
+</html>
